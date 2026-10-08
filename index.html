@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Как работает клиент-сервер</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f0f2f5;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+
+        /* ==== БЛОКИ ШАГОВ ==== */
+        .step {
+            background: white;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-left: 5px solid #ccc;
+            transition: all 0.3s ease;
+        }
+
+        .step.active {
+            border-left-color: #3498db;
+            background: #eaf4fd;
+            transform: scale(1.02);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .step.done {
+            border-left-color: #2ecc71;
+            background: #eafaf1;
+        }
+
+        .step-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .step-content {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 13px;
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: #2c3e50;
+            min-height: 30px;
+            line-height: 1.5;
+        }
+
+        /* ==== ФОРМА ==== */
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        /* ==== СТРЕЛКИ МЕЖДУ ШАГАМИ ==== */
+        .arrow {
+            text-align: center;
+            font-size: 28px;
+            color: #3498db;
+            margin: 5px 0;
+            animation: bounce 1.5s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(5px); }
+        }
+
+        /* ==== БЕЙДЖИ ==== */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+            margin-right: 8px;
+        }
+
+        .badge-client { background: #e67e22; }
+        .badge-server { background: #9b59b6; }
+        .badge-db     { background: #16a085; }
+
+        /* ==== ТАБЛИЦА ==== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 10px 15px;
+            border: 1px solid #e0e0e0;
+            text-align: left;
+        }
+
+        th {
+            background: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) { background: #f8f9fa; }
+        tr:hover { background: #eaf4fd; }
+
+        .empty {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+        }
+
+        /* ==== ИТОГОВЫЙ БЛОК ==== */
+        .final {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .final h3 { margin-top: 0; }
+        .final p { margin: 5px 0; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <h1>☕ Как работает клиент-сервер</h1>
+    <p class="subtitle">Введи данные и нажми «Отправить» — увидишь каждый шаг</p>
+
+    <!-- ============ ШАГ 1: ФОРМА ============ -->
+    <div class="step">
+        <div class="step-title">📝 ШАГ 1. Ты вводишь данные</div>
+        <div class="form-row">
+            <input id="name" placeholder="Имя (например: Иван)" value="Иван" />
+            <input id="number" placeholder="Телефон (например: 111-22-33)" value="111-22-33" />
+            <button id="sendBtn" onclick="sendGuest()">Отправить на сервер</button>
+        </div>
+    </div>
+
+    <!-- ============ ШАГ 2: КЛИЕНТ ============ -->
+    <div class="step" id="step2">
+        <div class="step-title">
+            <span class="badge badge-client">КЛИЕНТ</span>
+            ШАГ 2. Что делает браузер
+        </div>
+        <div class="step-content" id="clientLog">—</div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- ============ ШАГ 3: СЕРВЕР ============ -->
+    <div class="step" id="step3">
+        <div class="step-title">
+            <span class="badge badge-server">СЕРВЕР</span>
+            ШАГ 3. Что делает сервер
+        </div>
+        <div class="step-content" id="serverLog">—</div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- ============ ШАГ 4: БД ============ -->
+    <div class="step" id="step4">
+        <div class="step-title">
+            <span class="badge badge-db">БАЗА ДАННЫХ</span>
+            ШАГ 4. Сохранение в БД
+        </div>
+        <div class="step-content" id="dbLog">—</div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- ============ ШАГ 5: ОТВЕТ ============ -->
+    <div class="step" id="step5">
+        <div class="step-title">
+            <span class="badge badge-client">КЛИЕНТ</span>
+            ШАГ 5. Ответ пришёл в браузер
+        </div>
+        <div class="step-content" id="responseLog">—</div>
+    </div>
+
+    <!-- ============ ТАБЛИЦА ============ -->
+    <h2>📋 Все гости в базе данных</h2>
+    <button onclick="loadGuests()">🔄 Обновить список</button>
+    <table id="guestsTable">
+        <thead>
+            <tr>
+                <th>id</th>
+                <th>name</th>
+                <th>number</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="3" class="empty">Пока никого нет</td></tr>
+        </tbody>
+    </table>
+
+    <!-- ============ ИТОГ ============ -->
+    <div class="final">
+        <h3>🎓 Что ты сейчас увидела</h3>
+        <p>1. Браузер превратил объект JS в JSON</p>
+        <p>2. Отправил POST-запрос на сервер</p>
+        <p>3. Сервер принял JSON и превратил в объект (Pydantic)</p>
+        <p>4. Сохранил объект в БД (SQLAlchemy)</p>
+        <p>5. Вернул ответ в формате JSON</p>
+        <p>6. Браузер показал ответ</p>
+        <p><strong>Это и есть клиент-серверное взаимодействие.</strong></p>
+    </div>
+
+    <script>
+        // ==== УТИЛИТЫ ДЛЯ ПОДСВЕТКИ ====
+
+        // Убрать подсветку со всех шагов
+        function clearSteps() {
+            ['step2', 'step3', 'step4', 'step5'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active', 'done');
+            });
+        }
+
+        // Подсветить активный шаг
+        function highlight(id) {
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.add('active');
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // Пометить шаг выполненным
+        function markDone(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.remove('active');
+                el.classList.add('done');
+            }
+        }
+
+        // Пауза (чтобы анимация была видна)
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+
+        // ==== ГЛАВНАЯ ФУНКЦИЯ ====
+        async function sendGuest() {
+            // Блокируем кнопку, чтобы не нажали дважды
+            const btn = document.getElementById('sendBtn');
+            btn.disabled = true;
+            btn.textContent = 'Отправляю...';
+
+            // Сбрасываем все шаги
+            clearSteps();
+
+            // Берём данные из формы
+            const name = document.getElementById('name').value;
+            const number = document.getElementById('number').value;
+
+            // Проверка на пустые поля
+            if (!name || !number) {
+                alert('Заполни оба поля!');
+                btn.disabled = false;
+                btn.textContent = 'Отправить на сервер';
+                return;
+            }
+
+            // ============================================
+            // ШАГ 2: КЛИЕНТ
+            // ============================================
+            highlight('step2');
+
+            // 1. Создаём объект JS
+            const guest = { name: name, number: number };
+
+            // 2. Превращаем в JSON
+            const json = JSON.stringify(guest);
+
+            document.getElementById('clientLog').textContent =
+                `1. Создаю объект JS:\n   ${JSON.stringify(guest)}\n\n` +
+                `2. Превращаю в JSON (JSON.stringify):\n   ${json}\n\n` +
+                `3. Отправляю POST-запрос на /guests...`;
+
+            await sleep(1000);
+
+            // ============================================
+            // ОТПРАВКА НА СЕРВЕР
+            // ============================================
+            let response, data;
+
+            try {
+                response = await fetch('/guests', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: json
+                });
+
+                // ============================================
+                // ШАГ 3: СЕРВЕР
+                // ============================================
+                highlight('step3');
+
+                document.getElementById('serverLog').textContent =
+                    `1. Получен JSON от клиента:\n   ${json}\n\n` +
+                    `2. Pydantic валидирует данные...\n   ✅ Валидация пройдена\n\n` +
+                    `3. Превращаю в объект GuestCreate\n\n` +
+                    `4. CRUD создаёт объект Guest\n\n` +
+                    `5. SQLAlchemy готовит SQL-запрос...`;
+
+                await sleep(1200);
+
+                // ============================================
+                // ШАГ 4: БАЗА ДАННЫХ
+                // ============================================
+                highlight('step4');
+
+                document.getElementById('dbLog').textContent =
+                    `SQL-запрос:\n\n` +
+                    `INSERT INTO guests (name, number)\n` +
+                    `VALUES ('${name}', '${number}');\n\n` +
+                    `✅ Запись сохранена в cafe.db\n\n` +
+                    `SQLAlchemy присвоил id новой записи.`;
+
+                await sleep(1000);
+
+                // ============================================
+                // ШАГ 5: ОТВЕТ
+                // ============================================
+                highlight('step5');
+
+                // Проверяем статус ответа
+                if (!response.ok) {
+                    throw new Error(`Сервер вернул ${response.status}`);
+                }
+
+                // Превращаем JSON-ответ в объект JS
+                data = await response.json();
+
+                document.getElementById('responseLog').textContent =
+                    `1. Сервер вернул JSON:\n   ${JSON.stringify(data)}\n\n` +
+                    `2. Браузер превратил JSON в объект JS\n   (response.json())\n\n` +
+                    `3. Данные готовы к показу:\n` +
+                    `   id     = ${data.id}\n` +
+                    `   name   = ${data.name}\n` +
+                    `   number = ${data.number}`;
+
+                // Помечаем все шаги выполненными
+                markDone('step2');
+                markDone('step3');
+                markDone('step4');
+                markDone('step5');
+
+                // Обновляем таблицу
+                await loadGuests();
+
+            } catch (error) {
+                // Если что-то пошло не так
+                document.getElementById('responseLog').textContent =
+                    `❌ Ошибка: ${error.message}\n\n` +
+                    `Проверь, что сервер запущен (uvicorn main:app --reload).`;
+                console.error('Ошибка:', error);
+            } finally {
+                // Возвращаем кнопку в рабочее состояние
+                btn.disabled = false;
+                btn.textContent = 'Отправить на сервер';
+            }
+        }
+
+
+        // ==== ЗАГРУЗКА ВСЕХ ГОСТЕЙ ====
+        async function loadGuests() {
+            try {
+                const response = await fetch('/guests');
+                const data = await response.json();
+
+                const tbody = document.querySelector('#guestsTable tbody');
+                tbody.innerHTML = '';
+
+                if (data.length === 0) {
+                    tbody.innerHTML =
+                        '<tr><td colspan="3" class="empty">Пока никого нет</td></tr>';
+                    return;
+                }
+
+                data.forEach(g => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${g.id}</td>
+                        <td>${g.name}</td>
+                        <td>${g.number}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Не удалось загрузить гостей:', error);
+            }
+        }
+
+
+        // ==== ЗАГРУЗКА ПРИ ОТКРЫТИИ ====
+        window.addEventListener('DOMContentLoaded', () => {
+            loadGuests();
+        });
+    </script>
+
+</body>
+</html>
